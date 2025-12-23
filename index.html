@@ -1,160 +1,978 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Fun Click Counter</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dodge & Collect — Mini 2D Game</title>
+  <style>
+    :root{
+      --bg1:#0b1026; --bg2:#3a1c71; --bg3:#d76d77; --bg4:#ffaf7b;
+      --glass: rgba(255,255,255,.08);
+      --glass2: rgba(255,255,255,.12);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.72);
+      --accent: #40c4ff;
+      --good: #00e676;
+      --bad: #ff5252;
+      --warn:#ffd54f;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh;
+      display:grid; place-items:center;
+      color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1100px 700px at 20% 15%, rgba(64,196,255,.18), transparent 60%),
+                  radial-gradient(900px 600px at 80% 10%, rgba(0,230,118,.15), transparent 65%),
+                  linear-gradient(135deg, var(--bg1), #131a3d 35%, #2a1459 70%, #1a0933);
+      overflow:hidden;
+    }
 
-    <style>
-        body {
-            height: 100vh;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: Arial, sans-serif;
-            color: white;
-            transition: background 0.5s ease;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-        }
+    .wrap{
+      width:min(980px, 95vw);
+      display:grid;
+      grid-template-columns: 1fr 320px;
+      gap:16px;
+      align-items:start;
+    }
 
-        .container {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 30px 40px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            width: 350px;
-        }
+    .card{
+      background: linear-gradient(180deg, var(--glass), rgba(255,255,255,.04));
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 18px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.35);
+      overflow:hidden;
+      backdrop-filter: blur(10px);
+    }
 
-        h1 {
-            margin-bottom: 10px;
-        }
+    #gameCard{ position:relative; padding:14px; }
+    canvas{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius: 14px;
+      background:
+        radial-gradient(900px 450px at 30% 30%, rgba(64,196,255,.10), transparent 60%),
+        radial-gradient(700px 450px at 70% 60%, rgba(255,213,79,.08), transparent 65%),
+        linear-gradient(135deg, rgba(15,20,45,.95), rgba(8,10,22,.98));
+      border: 1px solid rgba(255,255,255,.10);
+    }
 
-        .counter {
-            font-size: 3rem;
-            margin: 15px 0;
-        }
+    .hudTop{
+      position:absolute;
+      left:22px; right:22px; top:18px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      pointer-events:none;
+    }
+    .pill{
+      pointer-events:none;
+      padding:10px 12px;
+      border-radius:999px;
+      background: rgba(0,0,0,.28);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      font-size:13px;
+      display:flex; gap:10px; align-items:center;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .pill b{ color:var(--text); font-weight:700 }
+    .dot{
+      width:10px; height:10px; border-radius:99px;
+      background: var(--accent);
+      box-shadow: 0 0 18px rgba(64,196,255,.7);
+    }
+    .dot.good{ background: var(--good); box-shadow:0 0 18px rgba(0,230,118,.65)}
+    .dot.bad{ background: var(--bad); box-shadow:0 0 18px rgba(255,82,82,.6)}
+    .dot.warn{ background: var(--warn); box-shadow:0 0 18px rgba(255,213,79,.65)}
 
-        .joke-box {
-            margin-top: 20px;
-            font-size: 1rem;
-            min-height: 50px;
-            padding: 10px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-        }
+    .side{
+      padding:16px;
+    }
+    .title{
+      display:flex; justify-content:space-between; align-items:flex-start;
+      gap:10px; margin-bottom:10px;
+    }
+    .title h1{
+      margin:0; font-size:20px; letter-spacing:.2px;
+    }
+    .title small{
+      display:block; margin-top:4px; color:var(--muted);
+      font-size:12px; line-height:1.35;
+    }
+    .btnRow{
+      display:flex; flex-wrap:wrap; gap:10px;
+      margin:12px 0 10px;
+    }
+    button{
+      border:none; cursor:pointer;
+      padding:10px 12px;
+      border-radius:12px;
+      background: rgba(255,255,255,.10);
+      color:var(--text);
+      border: 1px solid rgba(255,255,255,.14);
+      transition: transform .08s ease, box-shadow .12s ease, background .2s ease;
+      font-weight:650;
+    }
+    button:hover{ transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,.25); background: rgba(255,255,255,.14) }
+    button:active{ transform: translateY(0px) scale(.99) }
+    .primary{
+      background: linear-gradient(135deg, rgba(64,196,255,.85), rgba(106,130,251,.75));
+      border: 1px solid rgba(255,255,255,.22);
+      color: #061017;
+    }
+    .danger{
+      background: linear-gradient(135deg, rgba(255,82,82,.9), rgba(252,92,125,.75));
+      border: 1px solid rgba(255,255,255,.22);
+      color: #190306;
+    }
+    .toggleOn{
+      outline: 2px solid rgba(0,230,118,.55);
+      box-shadow: 0 0 0 6px rgba(0,230,118,.12);
+    }
 
-        button {
-            font-size: 1rem;
-            padding: 10px 20px;
-            margin: 8px;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-        }
+    .panel{
+      margin-top:12px;
+      padding:12px;
+      border-radius:14px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .panel h2{ margin:0 0 6px; font-size:13px; color:var(--muted); font-weight:700; letter-spacing:.3px; text-transform:uppercase}
+    .panel p, .panel li{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+      margin:0;
+    }
+    ul{ margin:8px 0 0; padding-left:18px }
+    .k{
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      padding:2px 7px; border-radius:8px; color:var(--text)
+    }
 
-        button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
+    /* Overlay */
+    .overlay{
+      position:absolute; inset:14px;
+      border-radius:14px;
+      display:grid; place-items:center;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,.10);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease;
+      text-align:center;
+      padding:18px;
+    }
+    .overlay.show{
+      opacity:1;
+      pointer-events:auto;
+    }
+    .overlay .box{
+      max-width: 520px;
+      background: rgba(20,25,55,.58);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 18px;
+      padding:18px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.45);
+    }
+    .overlay h3{ margin:0 0 8px; font-size:22px }
+    .overlay p{ margin:0; color:var(--muted); line-height:1.5 }
+    .overlay .big{
+      font-size:34px; margin:10px 0 8px; font-weight:850;
+    }
 
-        .click-btn {
-            background: #00e676;
-            color: #004d40;
-        }
+    /* Mobile joystick */
+    .joy{
+      position:absolute;
+      left:26px; bottom:26px;
+      width:120px; height:120px;
+      border-radius:999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      display:none;
+      touch-action:none;
+      user-select:none;
+    }
+    .joy .stick{
+      position:absolute;
+      left:50%; top:50%;
+      width:52px; height:52px;
+      transform: translate(-50%,-50%);
+      border-radius:999px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.16);
+      box-shadow: 0 12px 30px rgba(0,0,0,.25);
+    }
 
-        .reset-btn {
-            background: #ff5252;
-            color: white;
-        }
-
-        .joke-btn {
-            background: #40c4ff;
-            color: #003c8f;
-        }
-
-        .clear-btn {
-            background: #b388ff;
-            color: #2e004f;
-        }
-
-        /* Theme button */
-        .theme-btn {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            background: rgba(255,255,255,0.85);
-            color: #333;
-            padding: 10px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-        }
-    </style>
+    @media (max-width: 900px){
+      .wrap{ grid-template-columns: 1fr; }
+      .joy{ display:block; }
+    }
+  </style>
 </head>
 <body>
+  <div class="wrap">
+    <div id="gameCard" class="card">
+      <div class="hudTop">
+        <div class="pill"><span class="dot good"></span>Score: <b id="score">0</b> &nbsp;•&nbsp; Best: <b id="best">0</b></div>
+        <div class="pill"><span class="dot warn"></span>Level: <b id="level">1</b> &nbsp;•&nbsp; Lives: <b id="lives">3</b> &nbsp;•&nbsp; Shield: <b id="shield">OFF</b></div>
+        <div class="pill"><span class="dot"></span><span id="status">Ready</span></div>
+      </div>
 
-    <button class="theme-btn" onclick="changeTheme()">🎨 Theme</button>
+      <canvas id="c" width="640" height="420"></canvas>
 
-    <div class="container">
-        <h1>Fun Click Counter</h1>
+      <div id="overlay" class="overlay show">
+        <div class="box">
+          <h3 id="ovTitle">Dodge & Collect</h3>
+          <div class="big" id="ovBig">Press Start</div>
+          <p id="ovText">
+            Move with <span class="k">WASD</span> / <span class="k">Arrow Keys</span>. Collect coins, avoid enemies.
+            Grab a shield power-up to become invincible briefly.
+            Press <span class="k">P</span> to pause.
+          </p>
+          <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button class="primary" id="startBtn">Start</button>
+            <button id="howBtn">How to Play</button>
+          </div>
+        </div>
+      </div>
 
-        <div class="counter" id="count">0</div>
-
-        <button class="click-btn" onclick="increment()">Click Me</button>
-        <button class="reset-btn" onclick="resetCounter()">Reset</button>
-
-        <div class="joke-box" id="joke">Press the joke button 😄</div>
-
-        <button class="joke-btn" onclick="tellJoke()">Tell Me a Joke</button>
-        <button class="clear-btn" onclick="clearJoke()">Clear Joke</button>
+      <div class="joy" id="joy">
+        <div class="stick" id="stick"></div>
+      </div>
     </div>
 
-    <script>
-        let count = 0;
-        let themeIndex = 0;
+    <div class="card side">
+      <div class="title">
+        <div>
+          <h1>🎮 Dodge & Collect</h1>
+          <small>Single-file canvas game (HTML + CSS + JS). Works offline. Mobile joystick included.</small>
+        </div>
+      </div>
 
-        const themes = [
-            "linear-gradient(135deg, #667eea, #764ba2)",
-            "linear-gradient(135deg, #ff9a9e, #fad0c4)",
-            "linear-gradient(135deg, #43cea2, #185a9d)",
-            "linear-gradient(135deg, #f7971e, #ffd200)",
-            "linear-gradient(135deg, #fc5c7d, #6a82fb)"
-        ];
+      <div class="btnRow">
+        <button class="primary" id="startSide">Start / Resume</button>
+        <button id="pauseBtn">Pause (P)</button>
+        <button class="danger" id="restartBtn">Restart</button>
+        <button id="fxBtn" class="toggleOn">FX: ON</button>
+      </div>
 
-        const jokes = [
-            "Why don’t programmers like nature? Too many bugs.",
-            "Why do Java developers wear glasses? Because they don’t C#.",
-            "I told my computer I needed a break — it froze.",
-            "Why was the JavaScript developer sad? Because they didn’t know how to ‘null’.",
-            "Why did the programmer quit their job? Because they didn’t get arrays."
-        ];
+      <div class="panel">
+        <h2>Controls</h2>
+        <ul>
+          <li>Move: <span class="k">WASD</span> or <span class="k">Arrow Keys</span></li>
+          <li>Pause: <span class="k">P</span></li>
+          <li>Restart: <span class="k">R</span></li>
+        </ul>
+      </div>
 
-        function increment() {
-            count++;
-            document.getElementById("count").textContent = count;
+      <div class="panel">
+        <h2>Tips</h2>
+        <ul>
+          <li>Enemies speed up each level.</li>
+          <li>Collecting coins increases the spawn rate (more chaos, more points).</li>
+          <li>Shield makes you invincible for a few seconds — use it to push through danger.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>Goal</h2>
+        <p>Survive as long as possible, rack up score, and beat your best!</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Utilities =====
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const rand = (a,b) => a + Math.random()*(b-a);
+    const dist2 = (ax,ay,bx,by) => { const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; };
+
+    // ===== Audio (tiny synth) =====
+    let fxOn = true;
+    let audioCtx = null;
+    function beep(freq=440, dur=0.08, type="sine", gain=0.05){
+      if(!fxOn) return;
+      try{
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const t0 = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t0);
+        g.gain.setValueAtTime(gain, t0);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start(t0);
+        osc.stop(t0 + dur);
+      }catch(e){ /* ignore */ }
+    }
+
+    // ===== Canvas setup =====
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+
+    // ===== UI =====
+    const $ = (id) => document.getElementById(id);
+    const scoreEl = $("score"), bestEl = $("best"), levelEl = $("level"), livesEl = $("lives"), shieldEl = $("shield"), statusEl = $("status");
+    const overlay = $("overlay"), ovTitle = $("ovTitle"), ovBig = $("ovBig"), ovText = $("ovText");
+
+    // ===== Persistent best score =====
+    const BEST_KEY = "dc_best_score_v1";
+    let bestScore = Number(localStorage.getItem(BEST_KEY) || 0);
+    bestEl.textContent = bestScore;
+
+    // ===== Game state =====
+    const state = {
+      running:false,
+      paused:false,
+      gameOver:false,
+      t:0,
+      score:0,
+      level:1,
+      lives:3,
+      shieldTime:0,
+      coinSpawn:0,
+      enemySpawn:0,
+      powerSpawn:0,
+      shake:0,
+      msg:"Ready"
+    };
+
+    // Player
+    const player = {
+      x: W*0.5, y: H*0.6,
+      r: 14,
+      vx: 0, vy: 0,
+      speed: 240
+    };
+
+    // Entities
+    let coins = [];
+    let enemies = [];
+    let powers = []; // shield
+
+    function resetGame(){
+      state.running = false;
+      state.paused = false;
+      state.gameOver = false;
+      state.t = 0;
+      state.score = 0;
+      state.level = 1;
+      state.lives = 3;
+      state.shieldTime = 0;
+      state.coinSpawn = 0;
+      state.enemySpawn = 0;
+      state.powerSpawn = 0;
+      state.shake = 0;
+      state.msg = "Ready";
+
+      player.x = W*0.5; player.y = H*0.6;
+      player.vx = 0; player.vy = 0;
+
+      coins = [];
+      enemies = [];
+      powers = [];
+
+      for(let i=0;i<3;i++) spawnCoin();
+      for(let i=0;i<2;i++) spawnEnemy();
+
+      syncUI();
+      showOverlay("Dodge & Collect", "Press Start", "Move with WASD/Arrows. Collect coins, avoid enemies. Grab shields for temporary invincibility.");
+    }
+
+    function startGame(){
+      if(state.gameOver) resetGame();
+      state.running = true;
+      state.paused = false;
+      state.msg = "Go!";
+      hideOverlay();
+      beep(660, 0.06, "triangle", 0.06);
+      syncUI();
+    }
+
+    function pauseToggle(){
+      if(!state.running || state.gameOver) return;
+      state.paused = !state.paused;
+      state.msg = state.paused ? "Paused" : "Go!";
+      if(state.paused) showOverlay("Paused", "Press P to Resume", "Or click Start / Resume.");
+      else hideOverlay();
+      beep(state.paused ? 220 : 440, 0.06, "sine", 0.05);
+      syncUI();
+    }
+
+    function gameOver(){
+      state.running = false;
+      state.paused = false;
+      state.gameOver = true;
+      state.msg = "Game Over";
+      state.shake = 12;
+      beep(140, 0.12, "sawtooth", 0.08);
+      beep(110, 0.14, "sawtooth", 0.07);
+
+      if(state.score > bestScore){
+        bestScore = state.score;
+        localStorage.setItem(BEST_KEY, String(bestScore));
+        bestEl.textContent = bestScore;
+      }
+
+      showOverlay("Game Over", `Score: ${state.score}`, "Press Restart (or R) to try again.");
+      syncUI();
+    }
+
+    function syncUI(){
+      scoreEl.textContent = state.score;
+      levelEl.textContent = state.level;
+      livesEl.textContent = state.lives;
+      shieldEl.textContent = state.shieldTime > 0 ? "ON" : "OFF";
+      statusEl.textContent = state.msg;
+    }
+
+    function showOverlay(title, big, text){
+      ovTitle.textContent = title;
+      ovBig.textContent = big;
+      ovText.textContent = text;
+      overlay.classList.add("show");
+    }
+    function hideOverlay(){ overlay.classList.remove("show"); }
+
+    // ===== Spawning =====
+    function spawnCoin(){
+      const r = 10;
+      coins.push({
+        x: rand(r, W-r),
+        y: rand(r, H-r),
+        r,
+        pulse: rand(0, Math.PI*2)
+      });
+    }
+
+    function spawnEnemy(){
+      const r = rand(12, 18);
+      // spawn near edges
+      const side = Math.floor(rand(0,4));
+      let x, y;
+      if(side===0){ x = -r; y = rand(0,H); }
+      else if(side===1){ x = W + r; y = rand(0,H); }
+      else if(side===2){ x = rand(0,W); y = -r; }
+      else { x = rand(0,W); y = H + r; }
+
+      const base = 70 + state.level*10;
+      enemies.push({
+        x, y, r,
+        speed: rand(base, base+50),
+        wob: rand(0, Math.PI*2),
+        hue: rand(330, 30) // wrapy but fine for style
+      });
+    }
+
+    function spawnShield(){
+      const r = 12;
+      powers.push({
+        x: rand(r, W-r),
+        y: rand(r, H-r),
+        r,
+        t:0
+      });
+    }
+
+    function levelUp(){
+      state.level++;
+      state.msg = "Level Up!";
+      beep(880, 0.07, "triangle", 0.07);
+      beep(1100, 0.06, "triangle", 0.06);
+      // add pressure: more enemies
+      spawnEnemy();
+      if(state.level % 2 === 0) spawnEnemy();
+      state.shake = 6;
+      syncUI();
+      setTimeout(()=>{
+        if(!state.gameOver){
+          state.msg = "Go!";
+          syncUI();
         }
+      }, 700);
+    }
 
-        function resetCounter() {
-            count = 0;
-            document.getElementById("count").textContent = count;
+    // ===== Input =====
+    const keys = new Set();
+    window.addEventListener("keydown", (e)=>{
+      const k = e.key.toLowerCase();
+      if(["arrowup","arrowdown","arrowleft","arrowright"," ","w","a","s","d","p","r"].includes(k)) e.preventDefault();
+      keys.add(k);
+
+      if(k==="p") pauseToggle();
+      if(k==="r") { resetGame(); startGame(); }
+      if(k===" " && !state.running) startGame();
+    }, {passive:false});
+
+    window.addEventListener("keyup", (e)=>{
+      keys.delete(e.key.toLowerCase());
+    });
+
+    function axisFromKeys(){
+      let ax=0, ay=0;
+      if(keys.has("a") || keys.has("arrowleft")) ax -= 1;
+      if(keys.has("d") || keys.has("arrowright")) ax += 1;
+      if(keys.has("w") || keys.has("arrowup")) ay -= 1;
+      if(keys.has("s") || keys.has("arrowdown")) ay += 1;
+      const len = Math.hypot(ax, ay) || 1;
+      return { ax: ax/len, ay: ay/len };
+    }
+
+    // Mobile joystick
+    const joy = $("joy");
+    const stick = $("stick");
+    let joyActive = false;
+    let joyVec = {x:0,y:0};
+    const joyCenter = {x:0,y:0};
+
+    function setStick(px, py){
+      const rect = joy.getBoundingClientRect();
+      joyCenter.x = rect.left + rect.width/2;
+      joyCenter.y = rect.top + rect.height/2;
+      const dx = px - joyCenter.x;
+      const dy = py - joyCenter.y;
+      const max = rect.width * 0.32;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = dx / len, ny = dy / len;
+      const m = Math.min(max, len);
+      stick.style.transform = `translate(calc(-50% + ${nx*m}px), calc(-50% + ${ny*m}px))`;
+      joyVec.x = (len < 6) ? 0 : nx;
+      joyVec.y = (len < 6) ? 0 : ny;
+    }
+    function resetStick(){
+      stick.style.transform = "translate(-50%, -50%)";
+      joyVec.x = 0; joyVec.y = 0;
+    }
+
+    joy.addEventListener("pointerdown", (e)=>{
+      joyActive = true;
+      joy.setPointerCapture(e.pointerId);
+      setStick(e.clientX, e.clientY);
+      if(!state.running && !state.gameOver) startGame();
+    });
+    joy.addEventListener("pointermove", (e)=>{
+      if(!joyActive) return;
+      setStick(e.clientX, e.clientY);
+    });
+    joy.addEventListener("pointerup", ()=>{
+      joyActive = false;
+      resetStick();
+    });
+
+    // ===== Gameplay =====
+    function update(dt){
+      if(!state.running || state.paused || state.gameOver) return;
+
+      state.t += dt;
+      if(state.shake > 0) state.shake = Math.max(0, state.shake - dt*18);
+      if(state.shieldTime > 0) state.shieldTime = Math.max(0, state.shieldTime - dt);
+
+      // movement input (keyboard + joystick combined)
+      const k = axisFromKeys();
+      let ax = k.ax + joyVec.x;
+      let ay = k.ay + joyVec.y;
+      const l = Math.hypot(ax, ay);
+      if(l > 1){ ax/=l; ay/=l; }
+
+      const targetVx = ax * player.speed;
+      const targetVy = ay * player.speed;
+
+      // smooth movement
+      const smooth = 14;
+      player.vx += (targetVx - player.vx) * clamp(dt*smooth, 0, 1);
+      player.vy += (targetVy - player.vy) * clamp(dt*smooth, 0, 1);
+
+      player.x += player.vx * dt;
+      player.y += player.vy * dt;
+
+      // walls (soft)
+      player.x = clamp(player.x, player.r, W-player.r);
+      player.y = clamp(player.y, player.r, H-player.r);
+
+      // spawn timers
+      // coins spawn more as score increases
+      state.coinSpawn += dt;
+      const coinEvery = clamp(1.35 - state.level*0.08 - state.score*0.0012, 0.35, 1.35);
+      if(state.coinSpawn >= coinEvery){
+        state.coinSpawn = 0;
+        spawnCoin();
+      }
+
+      state.enemySpawn += dt;
+      const enemyEvery = clamp(2.2 - state.level*0.12, 0.55, 2.2);
+      if(state.enemySpawn >= enemyEvery){
+        state.enemySpawn = 0;
+        spawnEnemy();
+      }
+
+      state.powerSpawn += dt;
+      const powerEvery = 8.5; // occasional shield
+      if(state.powerSpawn >= powerEvery){
+        state.powerSpawn = 0;
+        if(powers.length < 1 && state.shieldTime <= 0) spawnShield();
+      }
+
+      // coins pulse and collision
+      for(const c of coins) c.pulse += dt*4.0;
+
+      // collect coins
+      for(let i=coins.length-1;i>=0;i--){
+        const c = coins[i];
+        if(dist2(player.x, player.y, c.x, c.y) <= (player.r + c.r + 2)**2){
+          coins.splice(i,1);
+          state.score += 10;
+          state.msg = "+10!";
+          beep(880, 0.05, "triangle", 0.06);
+          state.shake = 2;
+
+          // level up every 120 points
+          if(state.score > 0 && state.score % 120 === 0) levelUp();
+          syncUI();
         }
+      }
 
-        function changeTheme() {
-            themeIndex = (themeIndex + 1) % themes.length;
-            document.body.style.background = themes[themeIndex];
+      // power-ups
+      for(let i=powers.length-1;i>=0;i--){
+        const p = powers[i];
+        p.t += dt;
+        if(dist2(player.x, player.y, p.x, p.y) <= (player.r + p.r + 3)**2){
+          powers.splice(i,1);
+          state.shieldTime = 4.2;
+          state.msg = "Shield!";
+          beep(520, 0.08, "sine", 0.07);
+          beep(780, 0.06, "sine", 0.06);
+          syncUI();
         }
+      }
 
-        function tellJoke() {
-            const randomIndex = Math.floor(Math.random() * jokes.length);
-            document.getElementById("joke").textContent = jokes[randomIndex];
+      // enemies chase player with wobble
+      for(const e of enemies){
+        e.wob += dt*(1.5 + state.level*0.1);
+        const dx = player.x - e.x;
+        const dy = player.y - e.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const nx = dx / d, ny = dy / d;
+
+        // slight sideways wobble
+        const wx = -ny, wy = nx;
+        const wobAmt = Math.sin(e.wob) * 0.35;
+
+        const speed = e.speed * (1 + 0.04*state.level);
+        e.x += (nx + wx*wobAmt) * speed * dt;
+        e.y += (ny + wy*wobAmt) * speed * dt;
+      }
+
+      // enemy collisions
+      for(let i=enemies.length-1;i>=0;i--){
+        const e = enemies[i];
+        const hit = dist2(player.x, player.y, e.x, e.y) <= (player.r + e.r - 2)**2;
+        if(hit){
+          if(state.shieldTime > 0){
+            // bounce enemy away + score
+            state.score += 5;
+            state.msg = "Blocked!";
+            beep(300, 0.06, "square", 0.05);
+            // push enemy out
+            const dx = e.x - player.x, dy = e.y - player.y;
+            const d = Math.hypot(dx, dy) || 1;
+            e.x += (dx/d) * 40;
+            e.y += (dy/d) * 40;
+            state.shake = 4;
+            syncUI();
+          }else{
+            // lose life and respawn enemy
+            state.lives -= 1;
+            state.msg = "Ouch!";
+            state.shake = 10;
+            beep(160, 0.10, "sawtooth", 0.08);
+
+            enemies.splice(i,1);
+            spawnEnemy();
+
+            // brief invuln (mini shield flash)
+            state.shieldTime = 0.9;
+
+            if(state.lives <= 0){
+              gameOver();
+              return;
+            }
+            syncUI();
+          }
         }
+      }
 
-        function clearJoke() {
-            document.getElementById("joke").textContent = "";
-        }
-    </script>
+      // trim entities
+      if(coins.length > 18) coins.splice(0, coins.length - 18);
+      if(enemies.length > (6 + state.level)) enemies.splice(0, enemies.length - (6 + state.level));
+    }
 
+    // ===== Rendering =====
+    function draw(){
+      ctx.save();
+
+      // screen shake
+      if(state.shake > 0){
+        const s = state.shake;
+        ctx.translate(rand(-s, s), rand(-s, s));
+      }
+
+      // background grid
+      ctx.clearRect(0,0,W,H);
+      drawGrid();
+
+      // draw coins
+      for(const c of coins) drawCoin(c);
+
+      // draw power-ups
+      for(const p of powers) drawShield(p);
+
+      // draw enemies
+      for(const e of enemies) drawEnemy(e);
+
+      // player
+      drawPlayer();
+
+      // vignette
+      vignette();
+
+      ctx.restore();
+
+      // pause hint
+      if(state.running && !state.gameOver){
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        ctx.fillText("P = Pause • R = Restart", 14, H - 14);
+        ctx.restore();
+      }
+    }
+
+    function drawGrid(){
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.strokeStyle = "rgba(255,255,255,0.10)";
+      ctx.lineWidth = 1;
+
+      const step = 28;
+      for(let x=0; x<=W; x+=step){
+        ctx.beginPath();
+        ctx.moveTo(x,0); ctx.lineTo(x,H);
+        ctx.stroke();
+      }
+      for(let y=0; y<=H; y+=step){
+        ctx.beginPath();
+        ctx.moveTo(0,y); ctx.lineTo(W,y);
+        ctx.stroke();
+      }
+
+      // subtle stars
+      ctx.globalAlpha = 0.35;
+      for(let i=0;i<14;i++){
+        const x = (Math.sin(state.t*0.15 + i*9.1)*0.5 + 0.5) * W;
+        const y = (Math.cos(state.t*0.12 + i*7.7)*0.5 + 0.5) * H;
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.beginPath(); ctx.arc(x,y, 1.5, 0, Math.PI*2); ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawPlayer(){
+      ctx.save();
+      const {x,y,r} = player;
+
+      // glow
+      ctx.shadowColor = "rgba(64,196,255,0.7)";
+      ctx.shadowBlur = 18;
+
+      const g = ctx.createRadialGradient(x-4,y-6, 2, x,y, r*2.3);
+      g.addColorStop(0, "rgba(64,196,255,0.95)");
+      g.addColorStop(1, "rgba(106,130,251,0.05)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x,y, r+6, 0, Math.PI*2); ctx.fill();
+
+      // body
+      ctx.shadowBlur = 0;
+      const g2 = ctx.createRadialGradient(x-5,y-6, 2, x,y, r*1.8);
+      g2.addColorStop(0, "rgba(255,255,255,0.92)");
+      g2.addColorStop(1, "rgba(64,196,255,0.35)");
+      ctx.fillStyle = g2;
+      ctx.beginPath(); ctx.arc(x,y, r, 0, Math.PI*2); ctx.fill();
+
+      // direction eye
+      const a = Math.atan2(player.vy, player.vx);
+      const ex = x + Math.cos(a) * r*0.45;
+      const ey = y + Math.sin(a) * r*0.45;
+      ctx.fillStyle = "rgba(5,15,25,0.65)";
+      ctx.beginPath(); ctx.arc(ex, ey, 3.2, 0, Math.PI*2); ctx.fill();
+
+      // shield ring
+      if(state.shieldTime > 0){
+        const pulse = 0.3 + 0.7*Math.sin(state.t*8)*0.5 + 0.35;
+        ctx.strokeStyle = `rgba(0,230,118,${0.45 + 0.3*pulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(x,y, r+10 + 2*pulse, 0, Math.PI*2); ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCoin(c){
+      ctx.save();
+      const pulse = 1 + Math.sin(c.pulse)*0.12;
+      ctx.translate(c.x, c.y);
+      ctx.scale(pulse, pulse);
+
+      ctx.shadowColor = "rgba(255,213,79,0.8)";
+      ctx.shadowBlur = 16;
+
+      const g = ctx.createRadialGradient(-2,-3, 2, 0,0, c.r*2);
+      g.addColorStop(0, "rgba(255,255,255,0.95)");
+      g.addColorStop(0.4, "rgba(255,213,79,0.95)");
+      g.addColorStop(1, "rgba(255,213,79,0.10)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0,0, c.r, 0, Math.PI*2); ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0,0, c.r-1, 0, Math.PI*2); ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawEnemy(e){
+      ctx.save();
+      ctx.translate(e.x, e.y);
+
+      ctx.shadowColor = "rgba(255,82,82,0.7)";
+      ctx.shadowBlur = 18;
+
+      const g = ctx.createRadialGradient(-4,-6, 2, 0,0, e.r*2.4);
+      g.addColorStop(0, "rgba(255,255,255,0.85)");
+      g.addColorStop(0.35, "rgba(255,82,82,0.95)");
+      g.addColorStop(1, "rgba(255,82,82,0.08)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0,0, e.r, 0, Math.PI*2); ctx.fill();
+
+      ctx.shadowBlur = 0;
+      // angry eyes
+      ctx.fillStyle = "rgba(5,10,12,0.65)";
+      ctx.beginPath(); ctx.arc(-e.r*0.25, -e.r*0.12, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc( e.r*0.25, -e.r*0.12, 3, 0, Math.PI*2); ctx.fill();
+
+      // little mouth
+      ctx.strokeStyle = "rgba(5,10,12,0.6)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, e.r*0.25, e.r*0.25, 0.15*Math.PI, 0.85*Math.PI);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawShield(p){
+      ctx.save();
+      const pulse = 1 + Math.sin(state.t*6 + p.t*4)*0.08;
+      ctx.translate(p.x, p.y);
+      ctx.scale(pulse, pulse);
+
+      ctx.shadowColor = "rgba(0,230,118,0.75)";
+      ctx.shadowBlur = 18;
+
+      const g = ctx.createRadialGradient(-3,-4, 2, 0,0, p.r*2.6);
+      g.addColorStop(0, "rgba(255,255,255,0.9)");
+      g.addColorStop(0.4, "rgba(0,230,118,0.9)");
+      g.addColorStop(1, "rgba(0,230,118,0.08)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0,0, p.r, 0, Math.PI*2); ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0,0, p.r-1, 0, Math.PI*2); ctx.stroke();
+
+      // shield icon
+      ctx.fillStyle = "rgba(5,15,15,0.45)";
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.quadraticCurveTo(8, -4, 7, 4);
+      ctx.quadraticCurveTo(0, 10, -7, 4);
+      ctx.quadraticCurveTo(-8, -4, 0, -6);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function vignette(){
+      ctx.save();
+      const g = ctx.createRadialGradient(W*0.5, H*0.5, Math.min(W,H)*0.15, W*0.5, H*0.5, Math.max(W,H)*0.75);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(1, "rgba(0,0,0,0.38)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,W,H);
+      ctx.restore();
+    }
+
+    // ===== Main loop =====
+    let last = performance.now();
+    function loop(now){
+      const dt = Math.min(0.033, (now - last)/1000);
+      last = now;
+
+      update(dt);
+      draw();
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // ===== Buttons =====
+    $("startBtn").addEventListener("click", startGame);
+    $("startSide").addEventListener("click", ()=>{
+      if(state.gameOver) resetGame();
+      if(!state.running) startGame();
+      else if(state.paused) pauseToggle(); // resume
+      else startGame();
+    });
+    $("pauseBtn").addEventListener("click", pauseToggle);
+    $("restartBtn").addEventListener("click", ()=>{ resetGame(); startGame(); });
+    $("howBtn").addEventListener("click", ()=>{
+      showOverlay("How to Play", "Collect • Dodge • Survive",
+        "Coins = +10 points. Enemies chase you. Shield = invincible for a few seconds. Levels increase every 120 points. Press Start to play.");
+    });
+
+    const fxBtn = $("fxBtn");
+    fxBtn.addEventListener("click", ()=>{
+      fxOn = !fxOn;
+      fxBtn.textContent = fxOn ? "FX: ON" : "FX: OFF";
+      fxBtn.classList.toggle("toggleOn", fxOn);
+      beep(fxOn ? 520 : 220, 0.06, "sine", 0.05);
+    });
+
+    // click overlay to start
+    overlay.addEventListener("click", (e)=>{
+      // avoid clicking inside buttons only
+      const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+      if(tag === "button") return;
+      if(state.gameOver){ resetGame(); startGame(); return; }
+      if(!state.running) startGame();
+      else if(state.paused) pauseToggle();
+    });
+
+    // ===== Init =====
+    resetGame();
+  </script>
 </body>
 </html>
-
